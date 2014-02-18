@@ -1,0 +1,130 @@
+'\" t
+.\"     Title: b10-certgen
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: November 15, 2012
+.\"    Manual: BIND10
+.\"    Source: BIND10
+.\"  Language: English
+.\"
+.TH "B10\-CERTGEN" "1" "November 15, 2012" "BIND10" "BIND10"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+b10-certgen \- X509 Certificate generation tool for use with b10\-cmdctl
+.SH "SYNOPSIS"
+.HP \w'\fBb10\-certgen\fR\ 'u
+\fBb10\-certgen\fR [[\fB\-\fR]]
+.SH "DESCRIPTION"
+.PP
+The
+\fBb10\-certgen\fR
+tool validates, creates, or updates a self\-signed X509 certificate for use in b10\-cmdctl\&.
+.PP
+The connection between
+\fBbindctl\fR
+and
+\fBb10\-cmdctl\fR
+is done over HTTPS, and therefore
+\fBb10\-cmdctl\fR
+needs a certificate\&. Since these certificates have expiry dates, they also need to be regenerated at some point\&. There are many tools to do so, but for ease of use,
+\fB b10\-certgen\fR
+can create a simple self\-signed certificate\&. By default, it will not create anything, but it will merely check an existing certificate (if not specified, cmdctl\-certfile\&.pem, in the current working directory)\&. And print whether it is valid, and whether it would update if the option \'\-w\' is given\&. With that option, the certificate could then be replaced by a newly created one\&. If the certificate is still valid, it would still not be overwritten (however, if it is found to be invalid, for example because it has expired, it would create a new one)\&. A new certificate is always created if the certificate file does not exist, or if creation is forced (with the \-f option)\&.
+.SH "ARGUMENTS"
+.PP
+The arguments are as follows:
+.PP
+\fB\-c \fR\fB\fIfile\fR\fR, \fB\-\-certfile=\fR\fB\fIfile\fR\fR
+.RS 4
+File to read the certificate from, or write the certificate to\&. If
+\fB\-w\fR
+and
+\fB\-c\fR
+are used,
+\fB\-k\fR
+is mandatory as well\&.
+.RE
+.PP
+\fB\-f\fR, \fB\-\-force\fR
+.RS 4
+Force updating of certificate when
+\fB\-w\fR
+is used, even if the existing certificate is still valid\&.
+.RE
+.PP
+\fB\-h\fR, \fB\-\-help\fR
+.RS 4
+Print the command line arguments and exit\&.
+.RE
+.PP
+\fB\-k \fR\fB\fIfile\fR\fR, \fB\-\-keyfile=\fR\fB\fIfile\fR\fR
+.RS 4
+File to write the private key to\&. This option is only valid when
+\fB\-w\fR
+is used, and if this option is used,
+\fB\-c\fR
+is mandatory as well\&.
+.RE
+.PP
+\fB\-w\fR, \fB\-\-write\fR
+.RS 4
+Check the given certificate file\&. If it does not exist, a new private key and certificate are created\&. If it does exist, the certificate is validated\&. If it is not valid (for instance because it has expired), it is overwritten with a newly created certificate\&. If it is valid, nothing happens (use
+\fB\-f\fR
+to force an update in that case)\&.
+.RE
+.PP
+\fB\-q\fR, \fB\-\-quiet\fR
+.RS 4
+Don\'t print informational messages (only command\-line errors are printed)\&. Useful in scripts when only the return code is needed\&.
+.RE
+.SH "SEE ALSO"
+.PP
+
+\fBb10-cmdctl\fR(8),
+\fBbindctl\fR(1),
+BIND 10 Guide\&.
+.SH "HISTORY"
+.PP
+The
+\fBb10\-certgen\fR
+tool was first implemented in November 2012 for the ISC BIND 10 project\&.
+.SH "EXAMPLE"
+.PP
+To update an expired certificate in BIND 10 that has been installed to /usr/local:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$> cd /usr/local/etc/bind10/
+
+$> b10\-certgen
+cmdctl\-certfile\&.pem failed to verify: certificate has expired
+Running with \-w would overwrite the certificate
+
+$> b10\-certgen \-\-write
+cmdctl\-certfile\&.pem failed to verify: certificate has expired
+Creating key file cmdctl\-keyfile\&.pem
+Creating certificate file cmdctl\-certfile\&.pem
+
+$> b10\-certgen \-\-write
+cmdctl\-certfile\&.pem is valid
+Not creating a new certificate (use \-f to force)
+      
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.SH "COPYRIGHT"
+.br
+Copyright \(co 2012 Internet Systems Consortium, Inc. ("ISC")
+.br

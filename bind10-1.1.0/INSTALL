@@ -1,0 +1,13 @@
+If using git (not the tarball), build the "configure" file:
+    autoreconf --install
+
+To then build from source:
+    ./configure
+    make
+
+For detailed installation directions, see the guide
+at doc/guide/bind10-guide.txt or doc/guide/bind10-guide.html.
+
+You can find user-contributed OS-specific build/installation
+instructions on the BIND 10 wiki:
+http://bind10.isc.org/wiki/SystemSpecificNotes

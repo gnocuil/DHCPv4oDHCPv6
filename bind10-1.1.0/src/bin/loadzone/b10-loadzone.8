@@ -1,0 +1,143 @@
+'\" t
+.\"     Title: b10-loadzone
+.\"    Author: [see the "AUTHORS" section]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: December 15, 2012
+.\"    Manual: BIND10
+.\"    Source: BIND10
+.\"  Language: English
+.\"
+.TH "B10\-LOADZONE" "8" "December 15, 2012" "BIND10" "BIND10"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+b10-loadzone \- Load DNS Zone File
+.SH "SYNOPSIS"
+.HP \w'\fBb10\-loadzone\fR\ 'u
+\fBb10\-loadzone\fR [\fB\-c\ \fR\fB\fIdatasrc_config\fR\fR] [\fB\-d\ \fR\fB\fIdebug_level\fR\fR] [\fB\-i\ \fR\fB\fIreport_interval\fR\fR] [\fB\-t\ \fR\fB\fIdatasrc_type\fR\fR] [\fB\-C\ \fR\fB\fIzone_class\fR\fR] {zone\ name} {zone\ file}
+.SH "DESCRIPTION"
+.PP
+The
+\fBb10\-loadzone\fR
+utility loads a RFC 1035 style DNS master zone file and stores it in a BIND 10 ready data source format\&. Master files are text files that contain DNS Resource Records in text form\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.sp
+Currently only the SQLITE3 data source is supported\&.
+.sp .5v
+.RE
+.PP
+Some control entries (aka directives) are supported\&. $ORIGIN is followed by a domain name, and sets the origin that will be used for relative domain names in subsequent records\&. $INCLUDE is followed by a filename to load\&. The previous origin is restored after the file is included\&.
+$TTL is followed by a time\-to\-live value which is used by any following records that don\'t specify a TTL\&.
+.PP
+If the specified zone does not exist in the specified data source,
+\fBb10\-loadzone\fR
+will first create a new empty zone in the data source, then fill it with the RRs given in the specified master zone file\&. In this case, if loading fails for some reason, the creation of the new zone is also canceled\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.sp
+Due to an implementation limitation, the current version does not make the zone creation and subsequent loading an atomic operation; an empty zone will be visible and used by other application (e\&.g\&., the \fBb10\-auth\fR authoritative server) while loading\&. If this is an issue, make sure the initial loading of a new zone is done before starting other BIND 10 applications\&.
+.sp .5v
+.RE
+.PP
+When re\-loading an existing zone, the prior version is completely removed\&. While the new version of the zone is being loaded, the old version remains accessible to queries\&. After the new version is completely loaded, the old version is swapped out and replaced with the new one in a single operation\&. If loading fails for some reason, the loaded RRs will be effectively deleted, and the old version will still remain accessible for other applications\&.
+.SH "ARGUMENTS"
+.PP
+\-c \fIdatasrc_config\fR
+.RS 4
+Specifies configuration of the data source in the JSON format\&. The configuration contents depend on the type of the data source, and that\'s the same as what would be specified for the BIND 10 servers (see the data source configuration section of the BIND 10 guide)\&. For example, for an SQLite3 data source, it would look like \'{"database_file": "path\-to\-sqlite3\-db\-file"}\'\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+For SQLite3 data source with the default DB file, this option can be omitted; in other cases including for any other types of data sources when supported, this option is currently mandatory in practice\&. In a future version it will be possible to retrieve the configuration from the BIND 10 server configuration (if it exists)\&.
+.sp .5v
+.RE
+.RE
+.PP
+\-d \fIdebug_level\fR
+.RS 4
+Enable dumping debug level logging with the specified level\&. By default, only log messages at the severity of informational or higher levels will be produced\&.
+.RE
+.PP
+\-i \fIreport_interval\fR
+.RS 4
+Specifies the interval of status update by the number of RRs loaded in the interval\&. The
+\fBb10\-loadzone\fR
+tool periodically reports the progress of loading with the total number of loaded RRs and elapsed time\&. This option specifies the interval of the reports\&. If set to 0, status reports will be suppressed\&. The default is 10,000\&.
+.RE
+.PP
+\-t \fIdatasrc_type\fR
+.RS 4
+Specifies the type of data source to store the zone\&. Currently, only the "sqlite3" type is supported (which is the default of this option), which means the SQLite3 data source\&.
+.RE
+.PP
+\-C \fIzone_class\fR
+.RS 4
+Specifies the RR class of the zone\&. Currently, only class IN is supported (which is the default of this option) due to limitation of the underlying data source implementation\&.
+.RE
+.PP
+\fIzone name\fR
+.RS 4
+The name of the zone to create or update\&. This must be a valid DNS domain name\&.
+.RE
+.PP
+\fIzone file\fR
+.RS 4
+A path to the master zone file to be loaded\&.
+.RE
+.SH "FILES"
+.PP
+.SH "SEE ALSO"
+.PP
+
+\fBb10-auth\fR(8),
+\fBbind10\fR(8)\&.
+.SH "AUTHORS"
+.PP
+A prior version of the
+\fBb10\-loadzone\fR
+tool was written by Evan Hunt of ISC\&. The new version that this manual refers to was rewritten from the scratch by the BIND 10 development team in around December 2012\&.
+.SH "BUGS"
+.PP
+There are some issues noted in the DESCRIPTION section\&.
+.SH "COPYRIGHT"
+.br
+Copyright \(co 2012 Internet Systems Consortium, Inc. ("ISC")
+.br

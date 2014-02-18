@@ -1,0 +1,282 @@
+'\" t
+.\"     Title: b10-init
+.\"    Author: [see the "AUTHORS" section]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: February 5, 2013
+.\"    Manual: BIND10
+.\"    Source: BIND10
+.\"  Language: English
+.\"
+.TH "B10\-INIT" "8" "February 5, 2013" "BIND10" "BIND10"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+b10-init \- BIND 10 Init process
+.SH "SYNOPSIS"
+.HP \w'\fBb10\-init\fR\ 'u
+\fBb10\-init\fR [\fB\-c\ \fR\fB\fIconfig\-filename\fR\fR] [\fB\-i\fR] [\fB\-m\ \fR\fB\fIfile\fR\fR] [\fB\-p\ \fR\fB\fIdata_path\fR\fR] [\fB\-u\ \fR\fB\fIuser\fR\fR] [\fB\-v\fR] [\fB\-w\ \fR\fB\fIwait_time\fR\fR] [\fB\-\-clear\-config\fR] [\fB\-\-cmdctl\-port\fR\ \fIport\fR] [\fB\-\-config\-file\fR\ \fIconfig\-filename\fR] [\fB\-\-data\-path\fR\ \fIdirectory\fR] [\fB\-\-msgq\-socket\-file\ \fR\fB\fIfile\fR\fR] [\fB\-\-no\-kill\fR] [\fB\-\-pid\-file\fR\ \fIfilename\fR] [\fB\-\-pretty\-name\ \fR\fB\fIname\fR\fR] [\fB\-\-user\ \fR\fB\fIuser\fR\fR] [\fB\-\-verbose\fR] [\fB\-\-wait\ \fR\fB\fIwait_time\fR\fR]
+.SH "DESCRIPTION"
+.PP
+The
+\fBb10\-init\fR
+daemon starts up other BIND 10 required daemons\&. It handles restarting of exiting programs and also the shutdown of all managed daemons\&.
+.SH "ARGUMENTS"
+.PP
+The arguments are as follows:
+.PP
+\fB\-c\fR \fIconfig\-filename\fR, \fB\-\-config\-file\fR \fIconfig\-filename\fR
+.RS 4
+The configuration filename to use\&. Can be either absolute or relative to data path\&. In case it is absolute, value of data path is not considered\&. Defaults to
+b10\-config\&.db\&.
+.RE
+.PP
+\fB\-\-clear\-config\fR
+.RS 4
+This will create a backup of the existing configuration file, remove it and start
+b10\-cfgmgr(8)
+with the default configuration\&. The name of the backup file can be found in the logs (\fICFGMGR_BACKED_UP_CONFIG_FILE\fR)\&. (It will append a number to the backup filename if a previous backup file exists\&.)
+.RE
+.PP
+\fB\-\-cmdctl\-port\fR \fIport\fR
+.RS 4
+The
+\fBb10\-cmdctl\fR
+daemon will listen on this port\&. (See
+b10\-cmdctl(8)
+for the default\&.)
+.RE
+.PP
+\fB\-p\fR \fIdirectory\fR, \fB\-\-data\-path\fR \fIdirectory\fR
+.RS 4
+The path where BIND 10 programs look for various data files\&. Currently only
+\fBb10-cfgmgr\fR(8)
+uses it to locate the configuration file, but the usage might be extended for other programs and other types of files\&.
+.RE
+.PP
+\fB\-m\fR \fIfile\fR, \fB\-\-msgq\-socket\-file\fR \fIfile\fR
+.RS 4
+The UNIX domain socket file for the
+\fBb10-msgq\fR(8)
+daemon to use\&. The default is
+/usr/local/var/bind10/msg_socket\&.
+.RE
+.PP
+\fB\-i\fR, \fB\-\-no\-kill\fR
+.RS 4
+When this option is passed,
+\fBb10\-init\fR
+does not send SIGTERM and SIGKILL signals to modules during shutdown\&. (This option was introduced for use during testing\&.)
+.RE
+.PP
+\fB\-u\fR \fIuser\fR, \fB\-\-user\fR \fIname\fR
+.RS 4
+The username for
+\fBb10\-init\fR
+to run as\&.
+\fBb10\-init\fR
+must be initially ran as the root user to use this option\&. The default is to run as the current user\&.
+.RE
+.PP
+\fB\-\-pid\-file\fR \fIfilename\fR
+.RS 4
+If defined, the PID of the
+\fBb10\-init\fR
+is stored in this file\&.
+.RE
+.PP
+\fB\-\-pretty\-name \fR\fB\fIname\fR\fR
+.RS 4
+The name this process should have in tools like
+\fBps\fR
+or
+\fBtop\fR\&. This is handy if you have multiple versions/installations of
+\fBb10\-init\fR\&.
+.RE
+.PP
+\fB\-v\fR, \fB\-\-verbose\fR
+.RS 4
+Display more about what is going on for
+\fBb10\-init\fR
+and its child processes\&.
+.RE
+.PP
+\fB\-w\fR \fIwait_time\fR, \fB\-\-wait\fR \fIwait_time\fR
+.RS 4
+Sets the amount of time that BIND 10 will wait for the configuration manager (a key component of BIND 10) to initialize itself before abandoning the start up and terminating with an error\&. The
+\fIwait_time\fR
+is specified in seconds and has a default value of 10\&.
+.RE
+.SH "CONFIGURATION AND COMMANDS"
+.PP
+The configuration provides settings for components for
+\fBb10\-init\fR
+to manage under
+\fI/Init/components/\fR\&. The default elements are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+
+\fI/Init/components/b10\-cmdctl\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+
+\fI/Init/components/b10\-stats\fR
+.RE
+.PP
+(Note that the startup of
+\fBb10\-sockcreator\fR,
+\fBb10\-cfgmgr\fR, and
+\fBb10\-msgq\fR
+is not configurable\&. They are hardcoded and
+\fBb10\-init\fR
+will not run without them\&.)
+.PP
+The named sets for components contain the following settings:
+.PP
+\fIaddress\fR
+.RS 4
+The name used for communicating to it on the message bus\&.
+.RE
+.PP
+\fIkind\fR
+.RS 4
+This defines how required a component is\&. The possible settings for
+\fIkind\fR
+are:
+\fIcore\fR
+(system won\'t start if it won\'t start and
+\fBb10\-init\fR
+will shutdown if a
+\(lqcore\(rq
+component crashes),
+\fIdispensable\fR
+(\fBb10\-init\fR
+will restart failing component), and
+\fIneeded\fR
+(\fBb10\-init\fR
+will shutdown if component won\'t initially start, but if crashes later, it will attempt to restart)\&. This setting is required\&.
+.RE
+.PP
+\fIpriority\fR
+.RS 4
+This is an integer\&.
+\fBb10\-init\fR
+will start the components with largest priority numbers first\&.
+.RE
+.PP
+\fIprocess\fR
+.RS 4
+This is the filename of the executable to be started\&. If not defined, then
+\fBb10\-init\fR
+will use the component name instead\&.
+.RE
+.PP
+\fIspecial\fR
+.RS 4
+This defines if the component is started a special, hardcoded way\&.
+.RE
+.PP
+The
+\fIInit\fR
+configuration commands are:
+.PP
+
+\fBgetstats\fR
+tells
+\fBb10\-init\fR
+to send its statistics data to the
+\fBb10\-stats\fR
+daemon\&. This is an internal command and not exposed to the administrator\&.
+.PP
+
+\fBping\fR
+is used to check the connection with the
+\fBb10\-init\fR
+daemon\&. It returns the text
+\(lqpong\(rq\&.
+.PP
+
+\fBshow_processes\fR
+lists the current processes managed by
+\fBb10\-init\fR\&. The output is an array in JSON format containing the process ID, the name for each and the address name used on each message bus\&.
+
+
+.PP
+
+\fBshutdown\fR
+tells
+\fBb10\-init\fR
+to shutdown the BIND 10 servers\&. It will tell each process it manages to shutdown and, when complete,
+\fBb10\-init\fR
+will exit\&.
+.SH "STATISTICS DATA"
+.PP
+The statistics data collected by the
+\fBb10\-stats\fR
+daemon for
+\(lqInit\(rq
+include:
+.PP
+boot_time
+.RS 4
+The date and time that the
+\fBb10\-init\fR
+process started\&. This is represented in ISO 8601 format\&.
+.RE
+.SH "FILES"
+.PP
+sockcreator\-XXXXXX/sockcreator
+\(em the Unix Domain socket located in a temporary file directory for
+\fBb10\-sockcreator\fR
+communication\&.
+.SH "SEE ALSO"
+.PP
+
+\fBbind10\fR(8),
+\fBbindctl\fR(1),
+\fBb10-auth\fR(8),
+\fBb10-cfgmgr\fR(8),
+\fBb10-cmdctl\fR(8),
+\fBb10-msgq\fR(8),
+\fBb10-xfrin\fR(8),
+\fBb10-xfrout\fR(8),
+\fBb10-zonemgr\fR(8),
+\fBb10-stats\fR(8),
+\fBb10-stats-httpd\fR(8),
+BIND 10 Guide\&.
+.SH "HISTORY"
+.PP
+The development of
+\fBb10\-init\fR
+was started in October 2009\&. It was renamed and its configuration identifier changed in February 2013\&.
+.SH "AUTHORS"
+.PP
+The
+\fBb10\-init\fR
+daemon was initially designed by Shane Kerr of ISC\&.
+.SH "COPYRIGHT"
+.br
+Copyright \(co 2010-2013 Internet Systems Consortium, Inc. ("ISC")
+.br
