@@ -445,6 +445,16 @@ public:
     /// @throw isc::dhcp::SocketReadError if error occured when receiving a packet.
     /// @return Pkt4 object representing received packet (or NULL)
     Pkt4Ptr receive4(uint32_t timeout_sec, uint32_t timeout_usec = 0);
+    
+    ///4o6 socket fd
+    int fd_4o6;
+    
+    /// 4o6 receive & send
+    Pkt4Ptr receive4o6();
+    bool send4o6(const Pkt4Ptr& pkt);
+    
+#define FILENAME1 "DHCPv4oDHCPv6_1"
+#define FILENAME2 "DHCPv4oDHCPv6_2"
 
     /// Opens UDP/IP socket and binds it to address, interface and port.
     ///

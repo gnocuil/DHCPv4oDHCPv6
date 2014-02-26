@@ -66,6 +66,8 @@
 #define D6O_LQ_RELAY_DATA                       47 /* RFC5007 */
 #define D6O_LQ_CLIENT_LINK                      48 /* RFC5007 */
 
+#define OPTION_DHCPV4_MSG                       54321 /* 4o6: DHCPv4 Message Option */
+
 /*
  * Status Codes, from RFC 3315 section 24.4, and RFC 3633, 5007.
  */
@@ -99,6 +101,9 @@
 #define DHCPV6_RELAY_REPL          13
 #define DHCPV6_LEASEQUERY          14
 #define DHCPV6_LEASEQUERY_REPLY    15
+
+#define DHCPV4_QUERY              245 /* 4o6: DHCPv4-qurey message */
+#define DHCPV4_RESPONSE           246 /* 4o6: DHCPv4-response message*/
 
 extern const char *dhcpv6_type_names[];
 extern const int dhcpv6_type_name_max;

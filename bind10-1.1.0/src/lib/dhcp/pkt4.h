@@ -418,6 +418,9 @@ public:
     /// just after receiving it.
     /// @throw isc::Unexpected if timestamp update failed
     void updateTimestamp();
+    
+    /// 4o6: is this a dhcpv4ov6 packet?
+    int is4o6;
 
 protected:
 

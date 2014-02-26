@@ -55,6 +55,8 @@ Pkt4::Pkt4(uint8_t msg_type, uint32_t transid)
     memset(file_, 0, MAX_FILE_LEN);
 
     setType(msg_type);
+    //4o6
+    is4o6 = 0;
 }
 
 Pkt4::Pkt4(const uint8_t* data, size_t len)
@@ -86,6 +88,9 @@ Pkt4::Pkt4(const uint8_t* data, size_t len)
 
     data_.resize(len);
     memcpy(&data_[0], data, len);
+    
+    //4o6
+    is4o6 = 0;
 }
 
 size_t

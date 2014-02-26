@@ -160,6 +160,13 @@ protected:
     /// @param infRequest message received from client
     Pkt6Ptr processInfRequest(const Pkt6Ptr& infRequest);
 
+    /// 4o6
+    /// process DHCPv4-query message
+    Pkt6Ptr processDHCPv4oDHCPv6(const Pkt6Ptr& request);
+    
+    /// 4o6 listen fd
+    int fd_listen4o6;
+
     /// @brief Creates status-code option.
     ///
     /// @param code status code value (see RFC3315)

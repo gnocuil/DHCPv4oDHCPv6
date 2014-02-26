@@ -208,6 +208,9 @@ Dhcpv4Srv::run() {
                     rsp->setRemotePort(DHCP4_SERVER_PORT);
                 }
 
+                //4o6
+                rsp->is4o6 = query->is4o6;
+                
                 rsp->setLocalAddr(query->getLocalAddr());
                 rsp->setLocalPort(DHCP4_SERVER_PORT);
                 rsp->setIface(query->getIface());

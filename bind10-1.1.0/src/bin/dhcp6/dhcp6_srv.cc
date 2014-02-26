@@ -113,12 +113,28 @@ Dhcpv6Srv::Dhcpv6Srv(uint16_t port)
 
     // All done, so can proceed
     shutdown_ = false;
+    
+    //4o6 init socket
+    fd_listen4o6 = socket (AF_UNIX, SOCK_STREAM, 0);
+    if (fd_listen4o6 > 0) {
+        struct sockaddr_un server_address;
+        server_address.sun_family = AF_UNIX;
+        strcpy(server_address.sun_path, FILENAME2);
+        server_address.sun_path[0] = 0;
+        int len = strlen(FILENAME2) + offsetof(struct sockaddr_un, sun_path);
+        bind(fd_listen4o6, (struct sockaddr *)&server_address, len);
+        listen(fd_listen4o6, 5);
+    }
 }
 
 Dhcpv6Srv::~Dhcpv6Srv() {
     IfaceMgr::instance().closeSockets();
 
     LeaseMgrFactory::destroy();
+    
+    //4o6
+    if (fd_listen4o6 > 0)
+        close(fd_listen4o6);
 }
 
 void Dhcpv6Srv::shutdown() {
@@ -193,6 +209,10 @@ bool Dhcpv6Srv::run() {
                     rsp = processInfRequest(query);
                     break;
 
+                case DHCPV4_QUERY: /* 4o6 */
+                    rsp = processDHCPv4oDHCPv6(query);
+                    break;
+
                 default:
                     // Only action is to output a message if debug is enabled,
                     // and that will be covered by the debug statement before
@@ -241,6 +261,10 @@ bool Dhcpv6Srv::run() {
                     }
                 } else {
                     LOG_ERROR(dhcp6_logger, DHCP6_PACK_FAIL);
+                }
+                if (rsp->getType() == DHCPV4_RESPONSE) {
+                    printf("son process!!! exit\n");
+                    exit(0);
                 }
             }
         }
@@ -1074,6 +1098,58 @@ Dhcpv6Srv::processInfRequest(const Pkt6Ptr& infRequest) {
     /// @todo: Implement this
     Pkt6Ptr reply(new Pkt6(DHCPV6_REPLY, infRequest->getTransid()));
     return reply;
+}
+
+/* 4o6 */
+Pkt6Ptr
+Dhcpv6Srv::processDHCPv4oDHCPv6(const Pkt6Ptr& request) {
+    OptionPtr opt = request->getOption(OPTION_DHCPV4_MSG);
+    OptionBuffer data = opt->getData();
+    int fd;
+    if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+        //failed to create socket
+        return Pkt6Ptr();
+    }
+    struct sockaddr_un addr;
+    addr.sun_family = AF_UNIX;
+    strcpy(addr.sun_path, FILENAME1);
+    addr.sun_path[0] = 0;
+    int len = strlen(FILENAME1) + offsetof(struct sockaddr_un, sun_path);
+    int result = connect(fd, (struct sockaddr*)&addr, len);
+    if (result < 0) {
+        //failed to connect
+        return Pkt6Ptr();
+    }
+    int count = write(fd, data.data(), data.size());
+    if (count != data.size()) {
+        //send error
+    }
+    close(fd);
+    
+    //try to receive DHCPv4 msg from dhcp4_srv
+    if (fd_listen4o6 > 0) {
+        if (fork() == 0) {
+            uint8_t buf[IfaceMgr::RCVBUFSIZE];
+            int fd_recv = accept(fd_listen4o6, NULL, NULL);
+            int len = read(fd_recv, buf, IfaceMgr::RCVBUFSIZE);
+            close(fd_recv);
+            Pkt6Ptr reply(new Pkt6(DHCPV4_RESPONSE, 0));
+
+            copyDefaultOptions(request, reply);
+            appendDefaultOptions(request, reply);
+            appendRequestedOptions(request, reply);
+            
+            //append OPTION_DHCPV4_MSG
+            OptionBuffer obuf(len);
+            memcpy(obuf.data(), buf, len);
+            OptionPtr option(new Option(Option::V6, OPTION_DHCPV4_MSG, obuf));
+            reply->addOption(option);
+            
+            return (reply);
+        }
+    }
+    
+    return Pkt6Ptr();
 }
 
 };

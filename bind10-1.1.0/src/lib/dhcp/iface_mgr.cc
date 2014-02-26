@@ -141,6 +141,9 @@ IfaceMgr::IfaceMgr()
     } catch (const std::exception& ex) {
         isc_throw(IfaceDetectError, ex.what());
     }
+    
+    //4o6
+    fd_4o6 = 0;
 }
 
 void IfaceMgr::closeSockets() {
@@ -148,6 +151,10 @@ void IfaceMgr::closeSockets() {
          iface != ifaces_.end(); ++iface) {
         iface->closeSockets();
     }
+    
+    //4o6
+    if (fd_4o6 > 0)
+        close(fd_4o6);
 }
 
 IfaceMgr::~IfaceMgr() {
@@ -210,6 +217,19 @@ bool IfaceMgr::openSockets4(const uint16_t port, const bool use_bcast) {
     const bool bind_to_device = false;
 #endif
 
+    /* 4o6 - init socket
+    */
+    fd_4o6 = socket (AF_UNIX, SOCK_STREAM, 0);
+    if (fd_4o6 > 0) {
+        struct sockaddr_un server_address;
+        server_address.sun_family = AF_UNIX;
+        strcpy(server_address.sun_path, FILENAME1);
+        server_address.sun_path[0] = 0;
+        int len = strlen(FILENAME1) + offsetof(struct sockaddr_un, sun_path);
+        bind(fd_4o6, (struct sockaddr *)&server_address, len);
+        listen(fd_4o6, 5);
+    }
+    
     int bcast_num = 0;
 
     for (IfaceCollection::iterator iface = ifaces_.begin();
@@ -749,7 +769,10 @@ IfaceMgr::send(const Pkt6Ptr& pkt) {
 
 bool
 IfaceMgr::send(const Pkt4Ptr& pkt) {
-
+    //4o6
+    if (pkt->is4o6)
+        return send4o6(pkt);
+        
     Iface* iface = getIface(pkt->getIface());
     if (!iface) {
         isc_throw(BadValue, "Unable to send Pkt4. Invalid interface ("
@@ -761,6 +784,29 @@ IfaceMgr::send(const Pkt4Ptr& pkt) {
     return (packet_filter_->send(getSocket(*pkt), pkt));
 }
 
+//4o6 send
+bool
+IfaceMgr::send4o6(const Pkt4Ptr& pkt) {
+    printf("send4o6!!!\n");
+    int fd;
+    if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+        //failed to create socket
+        return false;
+    }
+    struct sockaddr_un addr;
+    addr.sun_family = AF_UNIX;
+    strcpy(addr.sun_path, FILENAME2);
+    addr.sun_path[0] = 0;
+    int len = strlen(FILENAME2) + offsetof(struct sockaddr_un, sun_path);
+    int result = connect(fd, (struct sockaddr*)&addr, len);
+    if (result < 0) {
+        //failed to connect
+        return false;
+    }
+    int count = write(fd, pkt->getBuffer().getData(), pkt->getBuffer().getLength());
+    close(fd);
+    return count;
+}
 
 boost::shared_ptr<Pkt4>
 IfaceMgr::receive4(uint32_t timeout_sec, uint32_t timeout_usec /* = 0 */) {
@@ -808,6 +854,14 @@ IfaceMgr::receive4(uint32_t timeout_sec, uint32_t timeout_usec /* = 0 */) {
         names << session_socket_ << "(session)";
     }
 
+    /* 4o6 - use AF_UNIX socket to receive packets from dhcp6_srv
+    */
+    if (fd_4o6 > 0) {
+        if (maxfd < fd_4o6)
+            maxfd = fd_4o6;
+        FD_SET(fd_4o6, &sockets);
+    }
+    
     struct timeval select_timeout;
     select_timeout.tv_sec = timeout_sec;
     select_timeout.tv_usec = timeout_usec;
@@ -850,6 +904,11 @@ IfaceMgr::receive4(uint32_t timeout_sec, uint32_t timeout_usec /* = 0 */) {
             break;
         }
     }
+    
+    //4o6
+    if (!candidate && fd_4o6 > 0 && FD_ISSET(fd_4o6, &sockets)) {
+        return receive4o6();
+    }
 
     if (!candidate) {
         isc_throw(SocketReadError, "received data over unknown socket");
@@ -859,6 +918,22 @@ IfaceMgr::receive4(uint32_t timeout_sec, uint32_t timeout_usec /* = 0 */) {
     // Skip checking if packet filter is non-NULL because it has been
     // already checked when packet filter was set.
     return (packet_filter_->receive(*iface, *candidate));
+}
+
+//4o6
+Pkt4Ptr
+IfaceMgr::receive4o6() {
+    uint8_t buf[IfaceMgr::RCVBUFSIZE];
+    int recv_fd = accept(fd_4o6, NULL, NULL);
+    int len = read(recv_fd, buf, IfaceMgr::RCVBUFSIZE);
+    printf("recv4o6 len=%d\n", len);
+    close(recv_fd);
+    
+    Pkt4Ptr pkt = Pkt4Ptr(new Pkt4(buf, len));
+    pkt->updateTimestamp();
+    pkt->is4o6 = true;
+    
+    return pkt;
 }
 
 Pkt6Ptr IfaceMgr::receive6(uint32_t timeout_sec, uint32_t timeout_usec /* = 0 */ ) {
