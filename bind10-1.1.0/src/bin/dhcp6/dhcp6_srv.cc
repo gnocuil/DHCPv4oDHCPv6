@@ -1129,6 +1129,22 @@ Dhcpv6Srv::processDHCPv4oDHCPv6(const Pkt6Ptr& request) {
     if (fd_listen4o6 > 0) {
         if (fork() == 0) {
             uint8_t buf[IfaceMgr::RCVBUFSIZE];
+            
+            fd_set sockets;
+            FD_ZERO(&sockets);
+            FD_SET(fd_listen4o6, &sockets);
+            
+            struct timeval select_timeout;
+            select_timeout.tv_sec = 1;//timeout = 1s
+            select_timeout.tv_usec = 0;
+            
+            int result = select(fd_listen4o6 + 1, &sockets, NULL, NULL, &select_timeout);
+            if (result <= 0 || !FD_ISSET(fd_listen4o6, &sockets)) {
+                // nothing received and timeout has been reached
+                printf("timeout!!!!!!!!!!!!!!!!!!!!\n");
+                exit(0);
+            }
+
             int fd_recv = accept(fd_listen4o6, NULL, NULL);
             int len = read(fd_recv, buf, IfaceMgr::RCVBUFSIZE);
             close(fd_recv);
