@@ -263,7 +263,6 @@ bool Dhcpv6Srv::run() {
                     LOG_ERROR(dhcp6_logger, DHCP6_PACK_FAIL);
                 }
                 if (rsp->getType() == DHCPV4_RESPONSE) {
-                    printf("son process!!! exit\n");
                     exit(0);
                 }
             }

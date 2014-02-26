@@ -787,7 +787,6 @@ IfaceMgr::send(const Pkt4Ptr& pkt) {
 //4o6 send
 bool
 IfaceMgr::send4o6(const Pkt4Ptr& pkt) {
-    printf("send4o6!!!\n");
     int fd;
     if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
         //failed to create socket
@@ -926,7 +925,6 @@ IfaceMgr::receive4o6() {
     uint8_t buf[IfaceMgr::RCVBUFSIZE];
     int recv_fd = accept(fd_4o6, NULL, NULL);
     int len = read(recv_fd, buf, IfaceMgr::RCVBUFSIZE);
-    printf("recv4o6 len=%d\n", len);
     close(recv_fd);
     
     Pkt4Ptr pkt = Pkt4Ptr(new Pkt4(buf, len));
