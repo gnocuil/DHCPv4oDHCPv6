@@ -143,7 +143,8 @@ IfaceMgr::IfaceMgr()
     }
     
     //4o6
-    fd_4o6 = 0;
+    fd_6to4 = 0;
+    fd_4to6 = 0;
 }
 
 void IfaceMgr::closeSockets() {
@@ -153,8 +154,10 @@ void IfaceMgr::closeSockets() {
     }
     
     //4o6
-    if (fd_4o6 > 0)
-        close(fd_4o6);
+    if (fd_6to4 > 0)
+        close(fd_6to4);
+    if (fd_4to6 > 0)
+        close(fd_4to6);
 }
 
 IfaceMgr::~IfaceMgr() {
@@ -219,15 +222,15 @@ bool IfaceMgr::openSockets4(const uint16_t port, const bool use_bcast) {
 
     /* 4o6 - init socket
     */
-    fd_4o6 = socket (AF_UNIX, SOCK_STREAM, 0);
-    if (fd_4o6 > 0) {
+    fd_6to4 = socket (AF_UNIX, SOCK_STREAM, 0);
+    if (fd_6to4 > 0) {
         struct sockaddr_un server_address;
         server_address.sun_family = AF_UNIX;
         strcpy(server_address.sun_path, FILENAME1);
         server_address.sun_path[0] = 0;
         int len = strlen(FILENAME1) + offsetof(struct sockaddr_un, sun_path);
-        bind(fd_4o6, (struct sockaddr *)&server_address, len);
-        listen(fd_4o6, 5);
+        bind(fd_6to4, (struct sockaddr *)&server_address, len);
+        listen(fd_6to4, 5);
     }
     
     int bcast_num = 0;
@@ -297,6 +300,18 @@ bool IfaceMgr::openSockets4(const uint16_t port, const bool use_bcast) {
 bool IfaceMgr::openSockets6(const uint16_t port) {
     int sock;
     int count = 0;
+    
+    //4o6 init socket
+    fd_4to6 = socket (AF_UNIX, SOCK_STREAM, 0);
+    if (fd_4to6 > 0) {
+        struct sockaddr_un server_address;
+        server_address.sun_family = AF_UNIX;
+        strcpy(server_address.sun_path, FILENAME2);
+        server_address.sun_path[0] = 0;
+        int len = strlen(FILENAME2) + offsetof(struct sockaddr_un, sun_path);
+        bind(fd_4to6, (struct sockaddr *)&server_address, len);
+        listen(fd_4to6, 5);
+    }
 
     for (IfaceCollection::iterator iface = ifaces_.begin();
          iface != ifaces_.end();
@@ -771,7 +786,7 @@ bool
 IfaceMgr::send(const Pkt4Ptr& pkt) {
     //4o6
     if (pkt->is4o6)
-        return send4o6(pkt);
+        return send4to6(pkt);
         
     Iface* iface = getIface(pkt->getIface());
     if (!iface) {
@@ -784,9 +799,9 @@ IfaceMgr::send(const Pkt4Ptr& pkt) {
     return (packet_filter_->send(getSocket(*pkt), pkt));
 }
 
-//4o6 send
+//4o6: dhcp4_srv uses this function to send pkt to dhcp6_srv
 bool
-IfaceMgr::send4o6(const Pkt4Ptr& pkt) {
+IfaceMgr::send4to6(const Pkt4Ptr& pkt) {
     int fd;
     if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
         //failed to create socket
@@ -855,10 +870,10 @@ IfaceMgr::receive4(uint32_t timeout_sec, uint32_t timeout_usec /* = 0 */) {
 
     /* 4o6 - use AF_UNIX socket to receive packets from dhcp6_srv
     */
-    if (fd_4o6 > 0) {
-        if (maxfd < fd_4o6)
-            maxfd = fd_4o6;
-        FD_SET(fd_4o6, &sockets);
+    if (fd_6to4 > 0) {
+        if (maxfd < fd_6to4)
+            maxfd = fd_6to4;
+        FD_SET(fd_6to4, &sockets);
     }
     
     struct timeval select_timeout;
@@ -905,8 +920,8 @@ IfaceMgr::receive4(uint32_t timeout_sec, uint32_t timeout_usec /* = 0 */) {
     }
     
     //4o6
-    if (!candidate && fd_4o6 > 0 && FD_ISSET(fd_4o6, &sockets)) {
-        return receive4o6();
+    if (!candidate && fd_6to4 > 0 && FD_ISSET(fd_6to4, &sockets)) {
+        return receive6to4();
     }
 
     if (!candidate) {
@@ -921,9 +936,9 @@ IfaceMgr::receive4(uint32_t timeout_sec, uint32_t timeout_usec /* = 0 */) {
 
 //4o6
 Pkt4Ptr
-IfaceMgr::receive4o6() {
+IfaceMgr::receive6to4() {
     uint8_t buf[IfaceMgr::RCVBUFSIZE];
-    int recv_fd = accept(fd_4o6, NULL, NULL);
+    int recv_fd = accept(fd_6to4, NULL, NULL);
     int len = read(recv_fd, buf, IfaceMgr::RCVBUFSIZE);
     close(recv_fd);
     
@@ -932,6 +947,22 @@ IfaceMgr::receive4o6() {
     pkt->is4o6 = true;
     
     return pkt;
+}
+
+//4o6
+Pkt6Ptr
+IfaceMgr::receive4to6() {
+    uint8_t buf[IfaceMgr::RCVBUFSIZE];
+    int recv_fd = accept(fd_4to6, NULL, NULL);
+    int len = read(recv_fd, buf, IfaceMgr::RCVBUFSIZE);
+    close(recv_fd);
+    
+    Pkt6Ptr reply(new Pkt6(DHCPV4_RESPONSE, 0));
+    
+    reply->data4o6_.resize(len);
+    memcpy(reply->data4o6_.data(), buf, len);
+        
+    return reply;
 }
 
 Pkt6Ptr IfaceMgr::receive6(uint32_t timeout_sec, uint32_t timeout_usec /* = 0 */ ) {
@@ -978,6 +1009,14 @@ Pkt6Ptr IfaceMgr::receive6(uint32_t timeout_sec, uint32_t timeout_usec /* = 0 */
             maxfd = session_socket_;
         names << session_socket_ << "(session)";
     }
+    
+    /* 4o6 - use AF_UNIX socket to receive packets from dhcp4_srv
+    */
+    if (fd_4to6 > 0) {
+        if (maxfd < fd_4to6)
+            maxfd = fd_4to6;
+        FD_SET(fd_4to6, &sockets);
+    }
 
     struct timeval select_timeout;
     select_timeout.tv_sec = timeout_sec;
@@ -1020,6 +1059,11 @@ Pkt6Ptr IfaceMgr::receive6(uint32_t timeout_sec, uint32_t timeout_usec /* = 0 */
         if (candidate) {
             break;
         }
+    }
+    
+    //4o6
+    if (!candidate && fd_4to6 > 0 && FD_ISSET(fd_4to6, &sockets)) {
+        return receive4to6();
     }
 
     if (!candidate) {

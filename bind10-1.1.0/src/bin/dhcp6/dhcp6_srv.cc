@@ -113,28 +113,12 @@ Dhcpv6Srv::Dhcpv6Srv(uint16_t port)
 
     // All done, so can proceed
     shutdown_ = false;
-    
-    //4o6 init socket
-    fd_listen4o6 = socket (AF_UNIX, SOCK_STREAM, 0);
-    if (fd_listen4o6 > 0) {
-        struct sockaddr_un server_address;
-        server_address.sun_family = AF_UNIX;
-        strcpy(server_address.sun_path, FILENAME2);
-        server_address.sun_path[0] = 0;
-        int len = strlen(FILENAME2) + offsetof(struct sockaddr_un, sun_path);
-        bind(fd_listen4o6, (struct sockaddr *)&server_address, len);
-        listen(fd_listen4o6, 5);
-    }
 }
 
 Dhcpv6Srv::~Dhcpv6Srv() {
     IfaceMgr::instance().closeSockets();
 
     LeaseMgrFactory::destroy();
-    
-    //4o6
-    if (fd_listen4o6 > 0)
-        close(fd_listen4o6);
 }
 
 void Dhcpv6Srv::shutdown() {
@@ -163,6 +147,8 @@ bool Dhcpv6Srv::run() {
         }
 
         if (query) {
+            //4o6: DHCPV4_RESPONSE cannot call unpack()...
+            if (query->getType() != DHCPV4_RESPONSE) {
             if (!query->unpack()) {
                 LOG_DEBUG(dhcp6_logger, DBG_DHCP6_DETAIL,
                           DHCP6_PACKET_PARSE_FAIL);
@@ -174,7 +160,7 @@ bool Dhcpv6Srv::run() {
                       .arg(static_cast<int>(query->getType()))
                       .arg(query->getBuffer().getLength())
                       .arg(query->toText());
-
+            }
             try {
                 switch (query->getType()) {
                 case DHCPV6_SOLICIT:
@@ -210,9 +196,14 @@ bool Dhcpv6Srv::run() {
                     break;
 
                 case DHCPV4_QUERY: /* 4o6 */
-                    rsp = processDHCPv4oDHCPv6(query);
+                    rsp = processDHCPv4Query(query);
                     break;
-
+                    
+                /* 4o6: actually we didn't receive a DHCPV4_RESPONSE, we just
+                received the content of OPTION_DHCPV4_MSG from dhcp4_srv */
+                case DHCPV4_RESPONSE:
+                    rsp = processDHCPv4Response(query);
+                    break;
                 default:
                     // Only action is to output a message if debug is enabled,
                     // and that will be covered by the debug statement before
@@ -1101,7 +1092,7 @@ Dhcpv6Srv::processInfRequest(const Pkt6Ptr& infRequest) {
 
 /* 4o6 */
 Pkt6Ptr
-Dhcpv6Srv::processDHCPv4oDHCPv6(const Pkt6Ptr& request) {
+Dhcpv6Srv::processDHCPv4Query(const Pkt6Ptr& request) {
     OptionPtr opt = request->getOption(OPTION_DHCPV4_MSG);
     OptionBuffer data = opt->getData();
     int fd;
@@ -1124,46 +1115,30 @@ Dhcpv6Srv::processDHCPv4oDHCPv6(const Pkt6Ptr& request) {
         //send error
     }
     close(fd);
-    
-    //try to receive DHCPv4 msg from dhcp4_srv
-    if (fd_listen4o6 > 0) {
-        if (fork() == 0) {
-            uint8_t buf[IfaceMgr::RCVBUFSIZE];
-            
-            fd_set sockets;
-            FD_ZERO(&sockets);
-            FD_SET(fd_listen4o6, &sockets);
-            
-            struct timeval select_timeout;
-            select_timeout.tv_sec = 1;//timeout = 1s
-            select_timeout.tv_usec = 0;
-            
-            int result = select(fd_listen4o6 + 1, &sockets, NULL, NULL, &select_timeout);
-            if (result <= 0 || !FD_ISSET(fd_listen4o6, &sockets)) {
-                // nothing received and timeout has been reached
-                printf("timeout!!!!!!!!!!!!!!!!!!!!\n");
-                exit(0);
-            }
+    uint32_t identifier = *(uint32_t*)(data.data() + 4);
+    map4o6[identifier] = request;
 
-            int fd_recv = accept(fd_listen4o6, NULL, NULL);
-            int len = read(fd_recv, buf, IfaceMgr::RCVBUFSIZE);
-            close(fd_recv);
-            Pkt6Ptr reply(new Pkt6(DHCPV4_RESPONSE, 0));
+    return Pkt6Ptr();
+}
 
-            copyDefaultOptions(request, reply);
-            appendDefaultOptions(request, reply);
-            appendRequestedOptions(request, reply);
+/* 4o6 */
+Pkt6Ptr
+Dhcpv6Srv::processDHCPv4Response(Pkt6Ptr& request) {
+    uint32_t identifier = *(uint32_t*)(request->data4o6_.data() + 4);
+    if (map4o6.count(identifier) && map4o6[identifier]) {
+        Pkt6Ptr reply = request;
+        request = map4o6[identifier];
+        map4o6.erase(identifier);
+        
+        copyDefaultOptions(request, reply);
+        appendDefaultOptions(request, reply);
+        appendRequestedOptions(request, reply);
             
-            //append OPTION_DHCPV4_MSG
-            OptionBuffer obuf(len);
-            memcpy(obuf.data(), buf, len);
-            OptionPtr option(new Option(Option::V6, OPTION_DHCPV4_MSG, obuf));
-            reply->addOption(option);
-            
-            return (reply);
-        }
+        //append OPTION_DHCPV4_MSG
+        OptionPtr option(new Option(Option::V6, OPTION_DHCPV4_MSG, reply->data4o6_));
+        reply->addOption(option);
+        return (reply);
     }
-    
     return Pkt6Ptr();
 }
 

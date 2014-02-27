@@ -365,6 +365,9 @@ public:
     /// to be impossible). Therefore public field is considered the best
     /// (or least bad) solution.
     std::vector<RelayInfo> relay_info_;
+    
+    //4o6: content of OPTION_DHCPV4_MSG, used by dhcp6_srv when receiving v4msg from dhcp4_srv
+    OptionBuffer data4o6_;
 protected:
     /// Builds on wire packet for TCP transmission.
     ///
