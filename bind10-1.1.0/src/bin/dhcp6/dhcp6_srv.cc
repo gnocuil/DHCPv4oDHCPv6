@@ -253,9 +253,6 @@ bool Dhcpv6Srv::run() {
                 } else {
                     LOG_ERROR(dhcp6_logger, DHCP6_PACK_FAIL);
                 }
-                if (rsp->getType() == DHCPV4_RESPONSE) {
-                    exit(0);
-                }
             }
         }
     }
